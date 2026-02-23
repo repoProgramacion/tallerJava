@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz — Programación I · Taller 1 Java · POO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0a0e1a;
+            --surface: #111827;
+            --surface2: #1a2236;
+            --border: #1e293b;
+            --text: #e2e8f0;
+            --text-dim: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --correct: #10b981;
+            --correct-bg: rgba(16, 185, 129, 0.08);
+            --correct-border: rgba(16, 185, 129, 0.3);
+            --wrong: #ef4444;
+            --wrong-bg: rgba(239, 68, 68, 0.08);
+            --wrong-border: rgba(239, 68, 68, 0.3);
+            --gold: #f59e0b;
+            --purple: #8b5cf6;
+            --font: 'Outfit', sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Noise overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Hero */
+        .hero {
+            position: relative;
+            padding: 60px 24px 48px;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -200px; left: 50%; transform: translateX(-50%);
+            width: 800px; height: 800px;
+            background: radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            padding: 6px 16px;
+            border-radius: 99px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--accent);
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .hero h1 {
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 900;
+            letter-spacing: -1px;
+            line-height: 1.15;
+            background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .hero-sub {
+            font-size: 1.05rem;
+            color: var(--text-dim);
+            max-width: 600px;
+            margin: 0 auto 28px;
+            font-weight: 400;
+        }
+
+        /* Score bar */
+        .score-bar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 14, 26, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .score-item {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.85rem; font-weight: 600;
+        }
+
+        .score-item .num { font-family: var(--mono); font-size: 1.1rem; }
+        .score-item.correct .num { color: var(--correct); }
+        .score-item.wrong .num { color: var(--wrong); }
+        .score-item.pending .num { color: var(--text-muted); }
+
+        .progress-track {
+            width: 200px; height: 6px;
+            background: var(--surface2);
+            border-radius: 99px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--purple));
+            border-radius: 99px;
+            transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        /* Container */
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 0 20px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Question card */
+        .q-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            margin-bottom: 28px;
+            overflow: hidden;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .q-card:hover { border-color: rgba(59,130,246,0.2); }
+        .q-card.answered-correct { border-color: var(--correct-border); box-shadow: 0 0 40px rgba(16,185,129,0.06); }
+        .q-card.answered-wrong { border-color: var(--wrong-border); box-shadow: 0 0 40px rgba(239,68,68,0.06); }
+
+        .q-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .q-number {
+            display: flex; align-items: center; gap: 12px;
+        }
+
+        .q-num-badge {
+            width: 42px; height: 42px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 1rem; color: #fff;
+            flex-shrink: 0;
+        }
+
+        .q-topic {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .q-label {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        .q-tag {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            padding: 4px 12px;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--gold);
+        }
+
+        /* Question body */
+        .q-body { padding: 20px 24px 24px; }
+
+        .q-text {
+            font-size: 0.97rem;
+            line-height: 1.75;
+            color: var(--text);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        /* Hint */
+        .hint-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            color: var(--gold);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: all 0.2s;
+            font-family: var(--font);
+        }
+        .hint-toggle:hover { background: rgba(245, 158, 11, 0.08); }
+
+        .hint-content {
+            display: none;
+            background: rgba(245, 158, 11, 0.06);
+            border: 1px solid rgba(245, 158, 11, 0.15);
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+            font-size: 0.88rem;
+            color: #fbbf24;
+            line-height: 1.6;
+        }
+        .hint-content.show { display: block; }
+
+        /* Options */
+        .options-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .option-btn {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            width: 100%;
+            text-align: left;
+            background: var(--surface2);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--font);
+            color: var(--text);
+        }
+
+        .option-btn:hover:not(.disabled) {
+            border-color: rgba(59,130,246,0.4);
+            background: rgba(59,130,246,0.05);
+        }
+
+        .option-btn .letter-badge {
+            width: 34px; height: 34px;
+            border-radius: 8px;
+            background: var(--surface);
+            border: 2px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 0.9rem; color: var(--text-dim);
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .option-btn .opt-text {
+            font-size: 0.9rem;
+            line-height: 1.65;
+            color: var(--text-dim);
+            padding-top: 4px;
+            transition: color 0.3s;
+        }
+
+        .option-btn:hover:not(.disabled) .opt-text { color: var(--text); }
+
+        /* Selected states */
+        .option-btn.selected-correct {
+            border-color: var(--correct);
+            background: var(--correct-bg);
+        }
+        .option-btn.selected-correct .letter-badge {
+            background: var(--correct);
+            border-color: var(--correct);
+            color: #fff;
+        }
+        .option-btn.selected-correct .opt-text { color: var(--correct); }
+
+        .option-btn.selected-wrong {
+            border-color: var(--wrong);
+            background: var(--wrong-bg);
+        }
+        .option-btn.selected-wrong .letter-badge {
+            background: var(--wrong);
+            border-color: var(--wrong);
+            color: #fff;
+        }
+        .option-btn.selected-wrong .opt-text { color: var(--wrong); }
+
+        .option-btn.reveal-correct {
+            border-color: var(--correct-border);
+            background: var(--correct-bg);
+        }
+        .option-btn.reveal-correct .letter-badge {
+            background: var(--correct);
+            border-color: var(--correct);
+            color: #fff;
+        }
+
+        .option-btn.disabled { cursor: default; opacity: 0.65; }
+        .option-btn.disabled.selected-correct,
+        .option-btn.disabled.selected-wrong,
+        .option-btn.disabled.reveal-correct { opacity: 1; }
+
+        /* Feedback */
+        .feedback {
+            display: none;
+            margin-top: 16px;
+            border-radius: 12px;
+            padding: 18px 20px;
+            font-size: 0.88rem;
+            line-height: 1.7;
+            animation: fadeSlideIn 0.4s ease;
+        }
+
+        .feedback.show { display: block; }
+
+        .feedback.correct-fb {
+            background: var(--correct-bg);
+            border: 1px solid var(--correct-border);
+            color: #6ee7b7;
+        }
+
+        .feedback.wrong-fb {
+            background: var(--wrong-bg);
+            border: 1px solid var(--wrong-border);
+            color: #fca5a5;
+        }
+
+        .feedback-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 6px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .feedback.correct-fb .feedback-title { color: var(--correct); }
+        .feedback.wrong-fb .feedback-title { color: var(--wrong); }
+
+        /* Get feedback button */
+        .get-feedback-btn {
+            display: none;
+            margin-top: 14px;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            color: #fff;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: var(--font);
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+        .get-feedback-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 28px var(--accent-glow); }
+        .get-feedback-btn.show { display: inline-flex; align-items: center; gap: 8px; }
+
+        /* Results section */
+        .results-card {
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .results-card.show { display: block; animation: fadeSlideIn 0.5s ease; }
+
+        .results-score {
+            font-size: 4rem;
+            font-weight: 900;
+            font-family: var(--mono);
+            background: linear-gradient(135deg, var(--correct), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .results-label {
+            font-size: 1.1rem;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        .results-msg {
+            margin-top: 16px;
+            font-size: 1rem;
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .reset-btn {
+            margin-top: 24px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 12px 32px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: var(--font);
+            transition: all 0.2s;
+        }
+        .reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Animations */
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .q-card { animation: fadeSlideIn 0.4s ease backwards; }
+
+        /* Nav dots */
+        .nav-dots {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 32px;
+        }
+        .nav-dot {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.72rem; font-weight: 700; color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--mono);
+        }
+        .nav-dot:hover { border-color: var(--accent); color: var(--accent); }
+        .nav-dot.dot-correct { background: var(--correct); border-color: var(--correct); color: #fff; }
+        .nav-dot.dot-wrong { background: var(--wrong); border-color: var(--wrong); color: #fff; }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .q-header { padding: 16px 16px 12px; }
+            .q-body { padding: 16px; }
+            .option-btn { padding: 12px 14px; gap: 10px; }
+            .score-bar { gap: 12px; padding: 10px 16px; }
+            .progress-track { width: 120px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <div class="hero-badge">☕ Java · POO · SENA 2026-I</div>
+    <h1>Taller 1 — Programación I</h1>
+    <p class="hero-sub">15 preguntas de selección múltiple con retroalimentación inmediata. Lee cada escenario, elige tu respuesta y aprende de la explicación.</p>
+</div>
+
+<div class="score-bar" id="scoreBar">
+    <div class="score-item correct">✅ <span class="num" id="correctCount">0</span></div>
+    <div class="score-item wrong">❌ <span class="num" id="wrongCount">0</span></div>
+    <div class="score-item pending">⏳ <span class="num" id="pendingCount">15</span></div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+</div>
+
+<div class="container">
+    <div class="nav-dots" id="navDots"></div>
+    <div id="quizContainer"></div>
+    <div class="results-card" id="resultsCard">
+        <div class="results-score" id="finalScore">0/15</div>
+        <div class="results-label">Puntuación Final</div>
+        <div class="results-msg" id="resultsMsg"></div>
+        <button class="reset-btn" onclick="resetQuiz()">🔄 Reiniciar Quiz</button>
+    </div>
+</div>
+
+<script>
+    const QUIZ_DATA = [{"number": 1, "topic": "Conceptos Fundamentales de POO", "quote": "\"La clave no es solo escribir código que funcione hoy. La POO nos permite modelar el mundo real como entidades con características y comportamientos propios, de modo que cuando el negocio cambie, el código pueda cambiar con él sin colapsar.\"", "quote_author": "— Carlos, líder técnico de SaludApp", "question": "Considerando el problema que enfrenta SaludApp y la explicación del líder técnico, ¿cuál de las siguientes afirmaciones describe de manera más precisa el propósito central de la Programación Orientada a Objetos como paradigma de desarrollo?", "hint": "piensa en cómo los seres humanos clasificamos el mundo: un «médico» y un «paciente» son tipos diferentes de «persona», cada uno con datos y acciones propias. ¿Cómo captura eso la POO?", "options": [{"letter": "A", "text": "La POO es un paradigma que organiza el software en torno a objetos: entidades que combinan datos (atributos) y comportamientos (métodos) en una misma unidad. En lugar de pensar el programa como una secuencia de instrucciones, se modela el problema como un conjunto de entidades que interactúan entre sí, tal como ocurre en el mundo real. En SaludApp esto significa que 'Medico', 'Paciente' y 'Administrador' serían clases independientes con sus propios atributos ('nombre', 'especialidad', 'historialClinico') y métodos ('agendarCita()', 'verHistorial()'), eliminando la necesidad de copiar y pegar código repetido.", "correct": true}, {"letter": "B", "text": "La POO es una técnica de optimización de memoria en la que el compilador de Java agrupa instrucciones relacionadas dentro de bloques 'class' para reducir el uso del heap. Al declarar múltiples variables dentro de una misma clase, la JVM las almacena de forma contigua, evitando la fragmentación que ocurría en la programación procedural. En el caso de SaludApp, agrupar 'nombre', 'edad' y 'especialidad' en una clase 'Medico' no implica un cambio de paradigma conceptual, sino simplemente una forma más eficiente de declarar variables relacionadas que el recolector de basura puede liberar en bloque cuando ya no se necesitan.", "correct": false}, {"letter": "C", "text": "La POO es esencialmente un estilo visual de escritura de código que surgió para facilitar la lectura en equipos grandes. Su aporte principal es estandarizar la nomenclatura: al forzar que cada entidad del sistema tenga un nombre en formato 'PascalCase' y sus atributos en 'camelCase', cualquier desarrollador puede entender el código sin documentación adicional. El problema de SaludApp con el copy-paste sería resuelto adoptando una guía de estilo estricta y herramientas de linting, ya que lo que realmente genera caos en proyectos grandes es la inconsistencia en los nombres, no la ausencia de un paradigma de diseño estructural.", "correct": false}]}, {"number": 2, "topic": "La Máquina Virtual de Java — JVM", "quote": "\"Write once, run anywhere.\"", "quote_author": "— Documentación oficial de Java, Sun Microsystems (1995)", "question": "Considerando que el mismo archivo '.class' funciona en Mac, Linux y Windows sin recompilar, ¿cuál de las siguientes afirmaciones explica correctamente el papel de la JVM en este proceso y por qué es eso posible?", "hint": "el archivo '.class' no contiene instrucciones para el procesador de tu computadora. Contiene instrucciones para algo más.", "options": [{"letter": "A", "text": "La JVM actúa como un compilador cruzado multiplataforma: cuando Andrés ejecuta 'javac' en su Mac, el compilador detecta automáticamente los tres sistemas operativos instalados en la red local y genera una versión del archivo '.class' optimizada para cada uno. Cuando Diana y Felipe reciben el archivo, su sistema operativo identifica la versión correspondiente y la ejecuta directamente sobre el hardware sin necesidad de ningún intermediario adicional. Esto explica por qué Java es más eficiente que lenguajes como C++, donde el desarrollador debe compilar manualmente para cada plataforma: el toolchain de Java automatiza ese proceso durante la compilación inicial, haciendo que el bytecode sea en realidad código máquina empaquetado de forma portable.", "correct": false}, {"letter": "B", "text": "Cuando Andrés compila con 'javac', el código fuente '.java' no se transforma en instrucciones nativas del procesador, sino en bytecode: un conjunto de instrucciones de nivel intermedio diseñadas específicamente para una máquina abstracta. Ese bytecode es el que queda en el archivo '.class'. La JVM es esa máquina abstracta: un programa instalado en el sistema operativo de Diana (Linux) y de Felipe (Windows) que sabe leer e interpretar el bytecode y traducirlo, en tiempo de ejecución, a las instrucciones nativas que entiende cada procesador. Por eso el mismo '.class' funciona en cualquier plataforma: el bytecode es siempre el mismo, pero cada JVM hace la traducción final según el hardware y sistema operativo donde corre.", "correct": true}, {"letter": "C", "text": "La portabilidad de Java se basa en que el sistema operativo —Linux, Windows o macOS— incluye de fábrica un módulo de compatibilidad binaria que reconoce el formato '.class' como un estándar abierto, similar a como todos los sistemas abren archivos '.pdf' o '.mp3'. La JVM es simplemente la interfaz gráfica de administración que permite al desarrollador monitorear en tiempo real el consumo de memoria y los hilos activos durante la ejecución, pero no participa directamente en la traducción de instrucciones. Esto significa que Diana y Felipe no necesitan tener ningún software adicional instalado: el kernel de Linux y el de Windows ya saben cómo interpretar bytecode de Java de forma nativa, del mismo modo que interpretan los formatos ejecutables propios de cada sistema ('.elf' y '.exe' respectivamente).", "correct": false}]}, {"number": 3, "topic": "Clases, Atributos y Métodos en Java", "quote": "\"Antes de escribir una sola línea de código, piensen: ¿qué información necesitamos guardar de un médico? ¿Y qué acciones puede hacer? Esas son las dos preguntas que definen cualquier clase en Java.\"", "quote_author": "— Valentina, líder técnica de SaludApp", "question": "Analizando el código que propuso Andrés, ¿cuál de las siguientes afirmaciones describe correctamente la diferencia estructural entre lo que representa la clase 'Medico', sus atributos y sus métodos, y el rol que cada uno juega dentro del sistema de SaludApp?", "hint": "observa los dos comentarios en el código — \"¿Qué es esto?\" y \"¿Y esto?\". Valentina los puso a propósito. La respuesta correcta distingue claramente qué papel cumple cada sección dentro de la clase y por qué esa separación es fundamental en POO.", "options": [{"letter": "A", "text": "La clase 'Medico' es el objeto en sí: cada vez que el sistema necesita representar a un médico real del hospital, utiliza directamente esa clase. Los atributos ('nombre', 'especialidad', 'tarjetaProfesional') y los métodos ('agendarCita()', 'getNombre()') son en realidad la misma cosa desde el punto de vista de la JVM: ambos se almacenan en el heap como campos del objeto y se acceden mediante la referencia de instancia. La distinción sintáctica entre atributos y métodos es una convención de legibilidad que Java heredó de C++, pero en memoria no existe diferencia real entre un campo de datos y un bloque de instrucciones: ambos son fragmentos del mismo objeto almacenado en el heap. Por eso en el código de Andrés, tanto 'nombre' como 'agendarCita()' cumplen el mismo rol estructural dentro de 'Medico'.", "correct": false}, {"letter": "B", "text": "En el código de Andrés, los atributos ('nombre', 'especialidad', 'tarjetaProfesional') son los únicos elementos que definen completamente a un médico; los métodos como 'agendarCita()' y 'getNombre()' son opcionales y pertenecen a la capa de servicio, no a la clase 'Medico' propiamente dicha. Siguiendo las buenas prácticas de arquitectura en capas, los métodos de negocio deberían estar en una clase separada llamada 'MedicoService', y la clase 'Medico' debería contener únicamente los atributos con sus respectivos getters y setters. Esto convierte a 'Medico' en un puro contenedor de datos, que es la forma correcta de definir una clase en Java moderno según el estándar JavaBeans.", "correct": false}, {"letter": "C", "text": "La clase 'Medico' es el molde o plantilla: define la estructura general de lo que significa ser un médico en el sistema, pero no representa a ningún médico concreto. Cuando SaludApp registre al Dr. Ramírez, se creará un objeto —una instancia— a partir de ese molde. Dentro de esa plantilla conviven dos elementos distintos y complementarios: los atributos ('nombre', 'especialidad', 'tarjetaProfesional') representan el estado —la información que describe al médico—, mientras que los métodos ('agendarCita()', 'getNombre()') representan el comportamiento —las acciones que ese médico puede ejecutar—. Esta unión de estado y comportamiento en una misma entidad es precisamente la esencia de la orientación a objetos que Valentina le explicó al equipo.", "correct": true}]}, {"number": 4, "topic": "Encapsulamiento en Java", "quote": "", "quote_author": "", "question": "Considerando el incidente ocurrido en SaludApp y la pregunta de Felipe, ¿cuál de las siguientes afirmaciones explica de forma más precisa qué es el encapsulamiento, cuál es su propósito real dentro del diseño orientado a objetos y por qué la versión de Valentina previene el tipo de error que ocurrió?", "hint": "observa el método 'setSaldoPendiente()' en la versión corregida. Hace algo que la asignación directa 'p.saldoPendiente = -500' no podría hacer. ¿Qué es y por qué importa?", "options": [{"letter": "A", "text": "El encapsulamiento consiste en restringir el acceso directo al estado interno de un objeto declarando sus atributos como 'private' y exponiendo únicamente métodos controlados ('get' / 'set') para leer o modificar esos datos. Su propósito no es solo ocultar información, sino garantizar que el objeto siempre se encuentre en un estado válido: nadie puede asignarle un valor incoherente sin pasar por la lógica de validación del propio objeto. En SaludApp, la versión de Valentina previene el incidente porque 'setSaldoPendiente()' incluye la validación 'if (valor >= 0)': cualquier intento de asignar un saldo negativo es silenciosamente rechazado por el propio objeto. El módulo de facturación ya no puede corromper el dato directamente porque el compilador impide el acceso al atributo 'private' desde fuera de la clase.", "correct": true}, {"letter": "B", "text": "El encapsulamiento es una convención de estilo que el equipo puede adoptar o no según su criterio. Declarar atributos como 'private' no cambia el comportamiento del programa en tiempo de ejecución: la JVM accede igualmente a todos los campos del objeto en memoria. La diferencia entre 'public' y 'private' solo existe para el compilador, no para la máquina virtual. El verdadero problema en SaludApp no fue la falta de encapsulamiento, sino la ausencia de pruebas unitarias que validaran los valores antes de persistirlos en la base de datos. Agregar 'private' y métodos 'get/set' solo añade código repetitivo sin aportar valor real; la validación debería estar en la capa de servicio, no en el modelo de datos.", "correct": false}, {"letter": "C", "text": "El encapsulamiento es el mecanismo mediante el cual Java cifra los atributos sensibles de un objeto para protegerlos de accesos externos no autorizados, especialmente en aplicaciones que manejan datos clínicos o financieros como SaludApp. Al declarar 'private double saldoPendiente', la JVM activa una capa de protección en memoria que impide que otros procesos del sistema operativo lean o modifiquen ese valor directamente. Esto es especialmente importante en hospitales porque la HIPAA y normativas colombianas como la Ley 1581 exigen que los datos clínicos estén protegidos a nivel de código, no solo a nivel de base de datos. El método 'getSaldoPendiente()' funciona como un canal seguro que desencripta el valor solo cuando el solicitante tiene los permisos correctos asignados en el sistema de roles de la aplicación.", "correct": false}]}, {"number": 5, "topic": "Visibilidad `public` en propiedades", "quote": "\"El modificador 'public' en una propiedad no es inocente. Estás diciéndole a todo el sistema: entra, cambia lo que quieras, no necesito saber.\"", "quote_author": "— Valentina, en la reunión post-incidente", "question": "Analizando los incidentes de la clase 'Turno' y el comentario de Valentina, ¿cuál de las siguientes afirmaciones describe con mayor precisión las consecuencias reales de declarar propiedades como 'public' en una clase Java y qué problema de diseño fundamental representa?", "hint": "nota que los dos bugs tienen algo en común — no son errores de lógica compleja, son asignaciones directas que nadie cuestionó. Piensa: ¿qué tendría que existir para que esas líneas ni siquiera compilaran?", "options": [{"letter": "A", "text": "Declarar propiedades como 'public' es una práctica válida y en muchos contextos recomendada por rendimiento: el acceso directo a un campo evita el overhead de invocar un método getter o setter, lo que resulta en un menor tiempo de ejecución. En sistemas de alto tráfico como un hospital con decenas de turnos simultáneos, estas micromejoras se acumulan y marcan la diferencia. El problema de los bugs en SaludApp no fue el modificador 'public', sino la falta de documentación y convenciones de equipo: si todos los desarrolladores leen el Javadoc de la clase 'Turno' y saben que 'estado' solo acepta valores en mayúscula, los errores como el de Santiago simplemente no ocurren. La solución es disciplina de equipo, no restricciones técnicas.", "correct": false}, {"letter": "B", "text": "El modificador 'public' en las propiedades de 'Turno' es problemático únicamente cuando la clase es utilizada por clases de otros paquetes. Dentro del mismo paquete, las propiedades 'public' se comportan igual que 'private', porque Java restringe automáticamente el alcance al contexto del paquete cuando no hay herencia involucrada. La solución correcta no es cambiar 'public' a 'private', sino usar el modificador 'protected', que garantiza que solo las subclases de 'Turno' y las clases del mismo paquete puedan modificar los atributos, ofreciendo un equilibrio ideal entre apertura y control para un sistema en crecimiento como SaludApp.", "correct": false}, {"letter": "C", "text": "Declarar una propiedad como 'public' significa exponer la implementación interna del objeto al mundo exterior sin ningún intermediario: cualquier clase, en cualquier parte del proyecto, puede leer y escribir ese valor libremente. Esto rompe el principio de encapsulamiento porque el objeto pierde el control sobre su propio estado — no puede imponer restricciones, formatos ni validaciones sobre los valores que recibe. En SaludApp, declarar 'public String estado' convierte una regla de negocio crítica —el estado solo puede ser '\"PENDIENTE\"', '\"ATENDIDO\"' o '\"CANCELADO\"'— en una convención informal que cualquier desarrollador puede ignorar por accidente. Si 'estado' fuera 'private' con un setter que validara el valor recibido, la asignación inválida '\"atendido\"' nunca habría llegado al objeto: el compilador habría bloqueado el acceso directo y el setter habría rechazado el valor incorrecto.", "correct": true}]}, {"number": 6, "topic": "Propiedades `private` en Java", "quote": "", "quote_author": "", "question": "Analizando los cinco accesos marcados en el código, ¿cuál de las siguientes afirmaciones describe correctamente el alcance real del modificador 'private' en Java y explica por qué el acceso (3) es legal mientras que el (5) no lo es?", "hint": "en el acceso (3), el método 'copiarDatos()' pertenece a la clase 'Cita' y accede a 'otra.paciente', siendo 'otra' también una instancia de 'Cita'. Pregúntate: ¿la restricción 'private' aplica por instancia o por clase?", "options": [{"letter": "A", "text": "El modificador 'private' restringe el acceso al atributo únicamente a la instancia actual del objeto, identificada por la referencia 'this'. Esto explica por qué los accesos (1) y (2) son válidos — usan 'this' implícita o explícitamente — y por qué el acceso (3) falla igual que el (5): en ambos casos se accede al atributo de una referencia externa ('otra' y 'c'), que no es la instancia actual. Para que 'copiarDatos()' compilara correctamente, Valentina debería reescribirlo usando el getter de la otra instancia: 'this.paciente = otra.getPaciente()', ya que el acceso directo a 'otra.paciente' viola la restricción de instancia que impone 'private'.", "correct": false}, {"letter": "B", "text": "El modificador 'private' restringe el acceso por clase, no por instancia: cualquier método que pertenezca a la clase 'Cita' puede acceder a los atributos 'private' de cualquier instancia de esa misma clase, sin importar si es 'this' u otra referencia como 'otra'. Por eso los accesos (1), (2) y (3) son todos válidos y compilan sin error: los tres ocurren dentro del código de la clase 'Cita'. En cambio, el acceso (5) falla porque ocurre en 'ModuloAgenda', que es una clase diferente. El acceso (4) también es válido porque usa el método público 'getPaciente()' — la única puerta autorizada desde fuera de la clase.", "correct": true}, {"letter": "C", "text": "El acceso (3) es legal porque Java aplica una excepción especial al modificador 'private' cuando ambos objetos son del mismo tipo: si 'this' y 'otra' son ambas instancias de 'Cita', la JVM detecta en tiempo de ejecución que comparten el mismo descriptor de clase y relaja automáticamente la restricción de visibilidad, permitiendo el acceso cruzado entre instancias del mismo tipo. El acceso (5) falla porque 'ModuloAgenda' está en un paquete diferente, y la JVM no puede verificar en tiempo de ejecución que el acceso sea seguro sin un cast explícito. Si 'ModuloAgenda' extendiera la clase 'Cita' con 'extends', podría acceder directamente a los atributos 'private' heredados sin necesidad de getters, ya que la herencia en Java transfiere todos los miembros al contexto de la subclase.", "correct": false}]}, {"number": 7, "topic": "El método `toString()` en Java", "quote": "\"Toda clase en Java hereda automáticamente de 'Object'. Y 'Object' ya tiene un 'toString()'... pero su versión no sabe nada de tu clase. Por eso hay que sobreescribirlo.\"", "quote_author": "— Valentina, explicando el resultado 'Cita@6d06d69c'", "question": "Considerando lo que observó Felipe en la consola y la explicación de Valentina, ¿cuál de las siguientes afirmaciones describe correctamente el propósito del método 'toString()', su origen en Java y por qué 'println(c)' lo invocó sin que Felipe lo llamara explícitamente?", "hint": "Felipe no llamó explícitamente a ningún método llamado 'toString()' — solo hizo 'println(c)'. Sin embargo el método se ejecutó igual. Piensa: ¿qué disparó esa ejecución y desde dónde viene ese método originalmente?", "options": [{"letter": "A", "text": "El método 'toString()' es el mecanismo de serialización estándar de Java: convierte el estado del objeto en una cadena de texto estructurada que puede transmitirse por red, almacenarse en base de datos o reconstruirse posteriormente. Es el equivalente básico de JSON en el ecosistema Java puro, antes de que existieran librerías como Gson o Jackson. En SaludApp, cuando Valentina sobreescribe 'toString()' en la clase 'Cita', está preparando el objeto para ser serializado eficientemente. El motivo por el que 'println(c)' lo invoca automáticamente es que 'PrintStream' detecta si el objeto implementa serialización y lo convierte antes de enviarlo al flujo de salida, evitando así mostrar la dirección de memoria cruda.", "correct": false}, {"letter": "B", "text": "El método 'toString()' es un método de instancia ordinario que solo se ejecuta cuando el desarrollador lo llama explícitamente: 'c.toString()'. El hecho de que 'println(c)' mostrara 'Cita@6d06d69c' antes de sobreescribirlo no tiene relación con 'toString()': esa salida es generada directamente por 'println', que al recibir un objeto imprime su dirección de memoria usando una función nativa de la JVM, independientemente de si la clase define o no un 'toString()'. Después de sobreescribir el método, 'println(c)' sigue sin invocarlo automáticamente — simplemente Felipe ahora llama 'c.toString()' internamente en su código y pasa el resultado a 'println'. Por eso ahora se ve el texto formateado: no es automático, es que alguien agregó esa llamada explícita.", "correct": false}, {"letter": "C", "text": "'toString()' es un método definido en la clase 'Object', la raíz de la jerarquía de clases en Java: toda clase hereda automáticamente de 'Object', incluyendo 'Cita'. Su versión por defecto devuelve una cadena con el nombre de la clase seguido de un código hexadecimal de memoria —lo que vio Felipe: 'Cita@6d06d69c'— porque 'Object' no conoce los atributos propios de cada clase hija. Al sobreescribirlo con '@Override', la clase 'Cita' reemplaza esa versión genérica con una representación útil. La razón por la que 'println(c)' lo invoca sin llamada explícita es que Java llama automáticamente a 'toString()' cada vez que necesita convertir un objeto a 'String': en concatenaciones con '+', en 'println()' y en cualquier contexto donde se espera texto.", "correct": true}]}, {"number": 8, "topic": "Constructores en Java", "quote": "", "quote_author": "— Valentina, revisando el código de Felipe", "question": "Analizando la clase 'Paciente', el uso que hace Felipe y el intento fallido de \"re-construir\" el objeto, ¿cuál de las siguientes afirmaciones describe correctamente qué es un constructor en Java, cuándo se ejecuta y qué características lo distinguen de un método ordinario?", "hint": "observa que los dos constructores tienen el mismo nombre que la clase pero diferente número de parámetros. También nota que ninguno declara tipo de retorno —ni siquiera 'void'. ¿Qué dice eso sobre su naturaleza dentro del lenguaje?", "options": [{"letter": "A", "text": "Un constructor es un bloque especial de inicialización que se ejecuta una única vez: en el momento exacto en que se crea el objeto con 'new'. Su función es establecer el estado inicial válido del objeto antes de que cualquier otro código pueda usarlo. Se diferencia de un método ordinario en tres aspectos clave: lleva exactamente el mismo nombre que la clase, no declara tipo de retorno (ni siquiera 'void'), y no puede invocarse directamente sobre un objeto ya creado. En 'Paciente', tener dos constructores con diferente número de parámetros es válido en Java: se llama sobrecarga de constructores, y permite crear instancias con distintos niveles de información disponible. El intento de Felipe — 'p2.Paciente(...)' — no compila porque el constructor no es un método de instancia y no puede llamarse sobre un objeto ya existente: su único momento de ejecución fue cuando se escribió 'new Paciente(...)'.", "correct": true}, {"letter": "B", "text": "El constructor es esencialmente un método especial de reinicio que puede invocarse en cualquier momento del ciclo de vida del objeto para restaurar sus atributos a un estado conocido. La diferencia con un método normal es únicamente sintáctica: lleva el nombre de la clase y no declara 'void'. Por eso es perfectamente válido llamarlo sobre un objeto ya creado cuando se necesita \"limpiar\" su estado, como hace Felipe con 'p2.Paciente(\"Luis\", 28, \"A-\")'. En SaludApp esto sería muy útil: si un médico necesita reasignar un objeto 'Paciente' a otro paciente diferente sin crear un nuevo objeto —evitando así presionar al recolector de basura— simplemente llamaría al constructor nuevamente para sobrescribir todos los atributos de golpe. Esta técnica es especialmente útil en sistemas de alto rendimiento donde crear objetos frecuentemente impacta el tiempo de respuesta.", "correct": false}, {"letter": "C", "text": "En Java, cuando una clase no define ningún constructor explícitamente, el compilador genera automáticamente un constructor por defecto estático: un bloque que pertenece a la clase en sí, no a las instancias, y que se comparte entre todos los objetos creados. Esto explica por qué 'p1' y 'p2' en SaludApp comparten referencias al mismo bloque de inicialización en memoria. La sobrecarga de constructores en 'Paciente' —tener uno sin parámetros y otro con tres— es posible porque Java almacena ambas versiones en el área metaspace de la JVM como métodos estáticos del tipo, y en tiempo de ejecución selecciona cuál invocar basándose en la firma de los argumentos pasados a 'new'. El hecho de que el constructor no declare 'void' confirma precisamente su naturaleza estática: los métodos estáticos en Java tampoco están obligados a retornar un valor si no manipulan el estado de instancia.", "correct": false}]}, {"number": 9, "topic": "Sobrecarga de constructores en Java", "quote": "\"No es recursión. Es encadenamiento. Los constructores ① y ② no duplican lógica — delegan al constructor principal. Cambias la inicialización en un solo lugar y todos se benefician.\"", "quote_author": "— Valentina, explicando el patrón", "question": "Considerando las preguntas de Felipe y el diseño de la clase 'Medico', ¿cuál de las siguientes afirmaciones describe correctamente qué es la sobrecarga de constructores, cómo determina Java cuál constructor ejecutar y qué papel cumple 'this(...)' dentro de un constructor?", "hint": "los tres constructores se llaman igual pero reciben diferente número y tipo de parámetros. En Java esto se llama firma. Pregúntate: ¿qué elementos componen la firma de un constructor y qué pasa si dos constructores tienen la misma firma aunque tengan distinto cuerpo?", "options": [{"letter": "A", "text": "La sobrecarga de constructores en Java funciona asignando internamente un alias numérico a cada versión según el orden de declaración en el código: el primero que aparece en el archivo se convierte en 'Medico$1', el segundo en 'Medico$2' y así sucesivamente. Cuando el desarrollador escribe 'new Medico(\"Juan\")', el compilador cuenta los argumentos y selecciona el alias correspondiente. El uso de 'this(...)' dentro del constructor ① es una llamada explícita al alias 'Medico$3', que el compilador resuelve en tiempo de compilación sustituyendo la referencia por la dirección del tercer constructor en el bytecode. Por eso el orden en que se escriben los constructores en el archivo sí importa: si se mueve el constructor completo al inicio, los alias cambian y 'this(...)' apuntaría a un constructor diferente.", "correct": false}, {"letter": "B", "text": "La sobrecarga de constructores es válida en Java siempre que las versiones tengan diferente número de parámetros. Una de sus ventajas clave es que, al usar herencia, todos los constructores sobrecargados de la clase padre se heredan automáticamente por la subclase: si 'MedicoEspecialista extends Medico', la subclase podrá usar los tres constructores definidos en 'Medico' directamente con 'new MedicoEspecialista(\"Juan\")' sin necesidad de redeclararlos. El uso de 'this(...)' dentro del constructor ① es equivalente a escribir 'super(...)': ambas palabras clave permiten delegar la inicialización al constructor más completo, con la diferencia de que 'this(...)' se usa cuando la clase no tiene padre explícito y 'super(...)' cuando sí lo tiene. Java elige automáticamente entre los dos según si hay una relación de herencia declarada.", "correct": false}, {"letter": "C", "text": "La sobrecarga de constructores permite definir múltiples versiones del mismo constructor en una clase, siempre que cada una tenga una firma diferente: distinto número de parámetros, distintos tipos, o distinto orden de tipos. Java determina cuál ejecutar en tiempo de compilación comparando los argumentos de 'new' contra las firmas disponibles — el orden de declaración en el código no influye en absoluto. El uso de 'this(...)' dentro de un constructor es el mecanismo de encadenamiento de constructores: permite que un constructor delegue la inicialización real a otro constructor de la misma clase, evitando duplicar código. Debe ser siempre la primera instrucción del constructor que lo usa. En la clase 'Medico', los constructores ① y ② son puertas de entrada simplificadas que convergen en el constructor ③ — el único que realmente toca los atributos — garantizando un único punto de inicialización que es fácil de mantener.", "correct": true}]}, {"number": 10, "topic": "Herencia en Java", "quote": "\"Un médico es un personal del hospital. Un enfermero también. Esa relación 'es un' es la señal de que la herencia tiene sentido aquí. Si la relación fuera 'tiene un', usaríamos composición — pero eso es otro tema.\"", "quote_author": "— Valentina, explicando el criterio de diseño", "question": "Considerando el rediseño de SaludApp con la clase 'Personal' como padre y el uso del criterio \"es un\" que menciona Valentina, ¿cuál de las siguientes afirmaciones describe correctamente qué es la herencia en Java, qué garantiza la palabra clave 'extends' y cuál es su limitación fundamental en el lenguaje?", "hint": "nota que 'Medico' y 'Enfermero' no redeclararon 'iniciarSesion()', pero lo pueden usar. También fíjate en cuántos 'extends' aparecen por clase. ¿Podría haber dos?", "options": [{"letter": "A", "text": "La herencia en Java es un mecanismo de copia automática de código: cuando se escribe 'Medico extends Personal', el compilador duplica todo el código fuente de 'Personal' dentro de 'Medico' antes de compilar. El resultado es que cada clase hija tiene su propia versión independiente de los atributos y métodos del padre, por eso modificar 'Personal' después de compilar no afecta a 'Medico' ni a 'Enfermero'. La ventaja principal es de escritura: el desarrollador no teclea los mismos atributos en cada clase. Pero en memoria cada objeto de tipo 'Medico' y cada objeto de tipo 'Enfermero' son completamente independientes entre sí y respecto a 'Personal', sin ninguna relación jerárquica en tiempo de ejecución. Por eso en Java no existe forma de tratar a un 'Medico' como si fuera un 'Personal' después de compilar.", "correct": false}, {"letter": "B", "text": "La herencia permite que una clase hija extienda a una clase padre usando 'extends', obteniendo automáticamente todos sus atributos y métodos no privados sin necesidad de redeclararlos. Esto establece una relación jerárquica real en tiempo de ejecución: un objeto de tipo 'Medico' es un 'Personal', lo que permite tratarlo como tal en cualquier parte del código que espere un 'Personal'. La limitación fundamental de Java es que una clase solo puede heredar de una única clase padre — no existe herencia múltiple de clases. Si se escribiera 'class Medico extends Personal, Empleado', el compilador generaría un error. Para lograr comportamientos de múltiples fuentes, Java ofrece las interfaces, que sí pueden combinarse en cualquier cantidad.", "correct": true}, {"letter": "C", "text": "La herencia en Java mediante 'extends' permite que una clase hija reciba los atributos y métodos de su padre y los use directamente. A diferencia de otros lenguajes, Java sí soporta herencia múltiple de clases: una misma clase puede extender varias clases simultáneamente separándolas con coma, siempre que no existan conflictos de nombres entre sus métodos. En SaludApp, si se necesitara que 'Medico' heredara tanto de 'Personal' como de 'Empleado', bastaría con escribir 'class Medico extends Personal, Empleado'. Java resuelve automáticamente los posibles conflictos de métodos priorizando el primero que aparece en la lista de padres, siguiendo el mismo mecanismo que usa C++ con su tabla de métodos virtuales.", "correct": false}]}, {"number": 11, "topic": "Agregación de clases en Java", "quote": "\"¿Ven la diferencia? El consultorio existe independientemente del médico. No nació con él y no muere con él. Eso es agregación: una relación tiene un donde ambos viven sus propias vidas.\"", "quote_author": "— Valentina, explicando el ciclo de vida", "question": "Analizando la relación entre 'Medico' y 'Consultorio' en SaludApp y la explicación de Valentina sobre el ciclo de vida, ¿cuál de las siguientes afirmaciones describe correctamente qué es la agregación en POO, qué la distingue de la herencia y cuál es su característica esencial respecto al ciclo de vida de los objetos involucrados?", "hint": "en el constructor de 'Medico', el 'Consultorio' llega como parámetro desde fuera — no se crea con 'new' adentro. ¿Qué dice eso sobre quién controla el ciclo de vida del consultorio?", "options": [{"letter": "A", "text": "La agregación es esencialmente herencia implícita: cuando una clase tiene como atributo un objeto de otra clase, Java establece internamente la misma relación jerárquica que si se usara 'extends', pero sin declararlo explícitamente en el código. Por eso 'Medico' puede acceder a los métodos de 'Consultorio' como si fueran propios: la JVM reconoce la relación y habilita el acceso polimórfico entre ambas clases. La diferencia práctica con la herencia explícita es únicamente de sintaxis: con 'extends' el compilador genera código más eficiente porque conoce la jerarquía en tiempo de compilación, mientras que en agregación la resolución es dinámica y ocurre en tiempo de ejecución cuando se invoca un método del objeto contenido. En términos de diseño, ambas relaciones expresan que una entidad es un tipo de otra.", "correct": false}, {"letter": "B", "text": "La agregación es una relación tiene un donde una clase contiene como atributo un objeto de otra clase. Su característica principal es que el ciclo de vida del objeto contenido depende del contenedor: cuando el objeto 'Medico' es eliminado o sale del alcance, el 'Consultorio' asociado también se marca para ser recolectado por el garbage collector, ya que su única referencia existente era la del médico que lo contenía. Esto explica por qué en SaludApp se pasa el 'Consultorio' como parámetro al constructor: el médico recibe la responsabilidad de gestionar el ciclo de vida del consultorio y liberarlo cuando él mismo desaparezca. Esta vinculación garantiza integridad referencial — nunca puede existir un consultorio sin un médico que lo contenga.", "correct": false}, {"letter": "C", "text": "La agregación es una relación tiene un donde una clase usa como atributo un objeto de otra clase, pero ambos tienen ciclos de vida independientes: el objeto contenido puede existir antes, durante y después del contenedor, y puede ser compartido por varios objetos al mismo tiempo. En código, la señal característica es que el objeto contenido se recibe como parámetro desde el exterior — no se crea con 'new' dentro del constructor del contenedor. A diferencia de la herencia —que modela una relación es un y usa 'extends'— la agregación modela que un objeto usa a otro sin absorberlo. Y a diferencia de la composición — donde el objeto contenido se crea internamente y muere con el contenedor — en la agregación el contenido sobrevive de forma autónoma. En SaludApp, el 'Consultorio 101' puede existir sin ningún médico asignado y puede compartirse entre 'm1' y 'm2' simultáneamente.", "correct": true}]}, {"number": 12, "topic": "Atributos `static final` en Java", "quote": "\"El compilador te va a detener antes de que ese cambio llegue a producción. 'final' garantiza que nadie —ni tú, ni yo, ni un bug— puede cambiar ese valor una vez asignado. Es la forma de Java de decir: esta regla no negocia.\"", "quote_author": "— Valentina, explicando por qué el último intento de Santiago falla", "question": "Considerando el diseño de 'ConfiguracionSistema', la forma en que se accede a las constantes y el error que genera el intento de Santiago, ¿cuál de las siguientes afirmaciones describe correctamente qué aporta 'static', qué aporta 'final' y por qué la combinación 'static final' es el patrón estándar para constantes en Java?", "hint": "observa que las constantes se acceden con 'ConfiguracionSistema.MAX_CITAS_DIA' usando el nombre de la clase, no una variable de instancia. Y nota que el intento de Santiago de reasignar la constante falló. ¿Qué modificador causa cada uno de esos dos comportamientos?", "options": [{"letter": "A", "text": "'static' hace que el atributo pertenezca a la clase y no a cada instancia, permitiendo accederlo con el nombre de la clase. 'final' restringe la asignación únicamente al momento de la declaración o al constructor: una vez que el constructor termina de ejecutarse, el valor queda bloqueado para ese objeto. Sin embargo, un método de instancia sí puede modificar el atributo 'final' después del constructor si se usa reflexión o si la clase declara el modificador 'volatile' en combinación. Por eso en SaludApp el intento de Santiago de asignar 'MAX_CITAS_DIA = 999' desde un método exterior fallará si y solo si no hay un constructor que haya reasignado ese valor previamente. Si la clase 'ConfiguracionSistema' tuviera un constructor que recibiera el límite como parámetro, esa asignación exterior sería válida porque el objeto aún estaría en fase de inicialización.", "correct": false}, {"letter": "B", "text": "El modificador 'static' en Java no crea una única copia global del atributo: en entornos multihilo, la JVM genera automáticamente una copia del atributo estático por cada hilo de ejecución (thread-local copy) para evitar condiciones de carrera. Esto significa que en SaludApp, si dos usuarios acceden simultáneamente al sistema, cada uno verá su propia versión de 'MAX_CITAS_DIA' sin interferencia. El modificador 'final' complementa este comportamiento indicando a la JVM que la copia por hilo no puede ser reemplazada por otra referencia durante la ejecución del hilo, pero sí puede mutar su estado interno si el tipo lo permite — por ejemplo, si 'MAX_CITAS_DIA' fuera una lista en lugar de un 'int', se le podrían agregar elementos sin problema. La combinación 'static final' es la forma idiomática de declarar constantes thread-safe en Java.", "correct": false}, {"letter": "C", "text": "'static' hace que el atributo pertenezca a la clase y no a las instancias: existe una única copia en memoria compartida por todos los objetos y accesible directamente con el nombre de la clase, sin necesidad de crear ninguna instancia. 'final' hace que el atributo sea inmutable tras su primera asignación: el compilador rechaza cualquier intento posterior de reasignación, sin excepciones — ni desde métodos, ni desde constructores de otras clases, ni desde el exterior. La combinación 'static final' forma la constante de clase: un valor único, compartido e inmodificable que centraliza reglas de negocio críticas. Por convención Java, sus nombres se escriben en 'MAYUSCULA_CON_GUIONES'. El intento de Santiago de asignar 'MAX_CITAS_DIA = 999' falla en compilación porque 'final' no admite ninguna excepción: el valor fue asignado en la declaración y eso es irrevocable.", "correct": true}]}, {"number": 13, "topic": "Sobrecarga de métodos en herencia", "quote": "", "quote_author": "", "question": "Con base en el código, ¿qué imprime el programa y por qué? Elige la afirmación que describe correctamente cómo se resuelve la llamada a 'enviar(\"Cita confirmada\")' cuando existe sobrecarga en la subclase y el tipo de referencia es el de la clase base.", "hint": "en Java, la sobrecarga (mismo nombre, distinta firma) se decide con el tipo en compilación, mientras que la sobrescritura (misma firma exacta) se decide con el tipo real en ejecución.", "options": [{"letter": "A", "text": "Imprime Email(Object): Cita confirmada porque el objeto real es 'NotificacionEmail' y Java siempre selecciona el método “más específico” en tiempo de ejecución, incluso cuando se trata de sobrecarga. Como 'String' es un 'Object', la JVM decide usar el método de la subclase.", "correct": false}, {"letter": "B", "text": "Imprime Base: Cita confirmada porque el método de la clase base se ejecuta siempre que la variable sea del tipo base. Para que se ejecute el de la subclase, el método debe llamarse distinto o debe declararse 'static'. La sobrecarga en herencia no es posible: Java la prohíbe para evitar ambigüedad.", "correct": false}, {"letter": "C", "text": "Imprime Base: Cita confirmada. La razón es que la sobrecarga se resuelve en compilación usando el tipo de la referencia ('Notificacion') y la firma visible en esa clase. En 'Notificacion' existe 'enviar(String)', así que esa es la llamada que queda “fijada” por el compilador. Como en la subclase no se sobrescribe (no existe 'enviar(String)' allí), en ejecución no hay despacho dinámico hacia un override: se ejecuta el método heredado de la base.", "correct": true}]}, {"number": 14, "topic": "Clases `final` en Java", "quote": "", "quote_author": "", "question": "Considerando el código anterior, ¿cuál afirmación describe correctamente qué implica declarar una clase como 'final' y qué efecto tiene sobre la herencia y la posibilidad de sobrescribir métodos?", "hint": "'final' en una clase afecta la herencia (no se puede extender). Es diferente a 'final' en un método (no se puede sobrescribir) o en un atributo (no se puede reasignar).", "options": [{"letter": "A", "text": "Una clase 'final' permite herencia, pero obliga a que los métodos de la subclase se llamen igual para “respetar” el contrato. Por eso, aunque Santiago extienda 'TokenEncryptor', Java compila y solo evita el '@Override' si el método no coincide exactamente.", "correct": false}, {"letter": "B", "text": "Declarar una clase como 'final' significa que sus métodos se vuelven automáticamente 'final', por lo tanto nadie puede sobrescribirlos, pero sí se puede extender la clase para agregar métodos nuevos. En otras palabras: 'final' bloquea overrides, pero no bloquea la herencia.", "correct": false}, {"letter": "C", "text": "Declarar una clase como 'final' significa que no puede ser extendida. Por eso, cualquier intento de hacer 'class TokenEncryptorDebil extends TokenEncryptor' produce un error de compilación. Al no existir subclases, tampoco es posible sobrescribir métodos en una subclase (porque la subclase no puede existir). Este patrón se usa cuando se quiere proteger el comportamiento de la clase (por ejemplo, por seguridad o estabilidad de la API).", "correct": true}]}, {"number": 15, "topic": "Composición de clases en Java", "quote": "“Si mañana cambia la estructura de la dirección (por ejemplo, agregamos 'codigoPostal'), no quiero romper la jerarquía de herencia del paciente. Prefiero que el paciente contenga una dirección, no que sea una dirección.”", "quote_author": "— Valentina, defendiendo composición sobre herencia", "question": "En el diseño mostrado, ¿cuál afirmación describe correctamente por qué Paciente usa composición con 'Direccion' y 'ContactoEmergencia', y qué ventaja ofrece frente a intentar modelarlo con herencia?", "hint": "en composición, la relación típica es “tiene un / tiene una” (has-a), mientras que en herencia es “es un / es una” (is-a).", "options": [{"letter": "A", "text": "La composición se usa aquí porque 'Direccion' y 'ContactoEmergencia' son clases “más pequeñas”, y Java no permite heredar de más de una clase; por eso se “pegan” dentro de 'Paciente'. En términos de comportamiento, composición y herencia son equivalentes: cualquier cosa que se haga con composición se puede lograr igual con herencia sin diferencias.", "correct": null}, {"letter": "B", "text": "La composición se usa solo cuando se quiere reutilizar código sin encapsulación. En este caso, sería mejor que 'Paciente' heredara de 'Direccion' para “tener” automáticamente ciudad y barrio, y además heredara de 'ContactoEmergencia' para el teléfono. Si Java permitiera herencia múltiple, esa sería la opción ideal porque evita crear objetos adicionales.", "correct": null}, {"letter": "C", "text": "La relación correcta es “Paciente tiene una Dirección” y “Paciente tiene un Contacto de emergencia” (has-a), no “Paciente es una Dirección”. Con composición, 'Direccion' y 'ContactoEmergencia' quedan encapsuladas como partes del objeto, y se pueden evolucionar (agregar campos, validaciones o métodos) sin forzar una jerarquía de herencia artificial. Además, evita el acoplamiento y mantiene el modelo más flexible: el paciente puede cambiar de dirección o de contacto sin “romper” su identidad como paciente.", "correct": true}]}];
+
+    let state = { correct: 0, wrong: 0, answered: new Set() };
+
+    function escapeHtml(t) {
+        return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/\'/g, '<code>')
+            .replace(/'/g,"'");
+    }
+
+    function renderQuiz() {
+        const container = document.getElementById('quizContainer');
+        const dots = document.getElementById('navDots');
+        let html = '';
+        let dotsHtml = '';
+
+        QUIZ_DATA.forEach((q, idx) => {
+            dotsHtml += `<div class="nav-dot" id="dot-${idx}" onclick="scrollToQ(${idx})">${q.number}</div>`;
+
+            let optionsHtml = '';
+            q.options.forEach((opt, oi) => {
+                optionsHtml += `
+        <button class="option-btn" id="opt-${idx}-${oi}" onclick="selectOption(${idx}, ${oi})">
+          <div class="letter-badge">${opt.letter}</div>
+          <div class="opt-text">${opt.text}</div>
+        </button>`;
+            });
+
+            html += `
+    <div class="q-card" id="qcard-${idx}" style="animation-delay: ${idx * 0.05}s">
+      <div class="q-header">
+        <div class="q-number">
+          <div class="q-num-badge">${q.number}</div>
+          <div>
+            <div class="q-label">Pregunta ${q.number} de 15</div>
+            <div class="q-topic">${q.topic}</div>
+          </div>
+        </div>
+        <div class="q-tag">☕ Java — POO</div>
+      </div>
+      <div class="q-body">
+        <p class="q-text">${q.question}</p>
+        ${q.hint ? `
+        <button class="hint-toggle" onclick="toggleHint(${idx})">💡 Ver pista</button>
+        <div class="hint-content" id="hint-${idx}">${q.hint}</div>
+        ` : ''}
+        <div class="options-list">${optionsHtml}</div>
+        <button class="get-feedback-btn" id="fbBtn-${idx}" onclick="showFeedback(${idx})">📝 Obtener retroalimentación</button>
+        <div class="feedback" id="feedback-${idx}"></div>
+      </div>
+    </div>`;
+        });
+
+        dots.innerHTML = dotsHtml;
+        container.innerHTML = html;
+    }
+
+    function toggleHint(idx) {
+        const el = document.getElementById('hint-' + idx);
+        el.classList.toggle('show');
+    }
+
+    function selectOption(qIdx, optIdx) {
+        if (state.answered.has(qIdx)) return;
+        state.answered.add(qIdx);
+
+        const q = QUIZ_DATA[qIdx];
+        const selected = q.options[optIdx];
+        const isCorrect = selected.correct;
+
+        // Disable all options
+        q.options.forEach((_, oi) => {
+            const btn = document.getElementById(`opt-${qIdx}-${oi}`);
+            btn.classList.add('disabled');
+        });
+
+        // Mark selected
+        const selBtn = document.getElementById(`opt-${qIdx}-${optIdx}`);
+        selBtn.classList.add(isCorrect ? 'selected-correct' : 'selected-wrong');
+
+        // Reveal correct if wrong
+        if (!isCorrect) {
+            q.options.forEach((o, oi) => {
+                if (o.correct) {
+                    document.getElementById(`opt-${qIdx}-${oi}`).classList.add('reveal-correct');
+                }
+            });
+        }
+
+        // Update card style
+        const card = document.getElementById(`qcard-${qIdx}`);
+        card.classList.add(isCorrect ? 'answered-correct' : 'answered-wrong');
+
+        // Update dot
+        const dot = document.getElementById(`dot-${qIdx}`);
+        dot.classList.add(isCorrect ? 'dot-correct' : 'dot-wrong');
+
+        // Update score
+        if (isCorrect) state.correct++;
+        else state.wrong++;
+        updateScore();
+
+        // Show feedback button
+        document.getElementById(`fbBtn-${qIdx}`).classList.add('show');
+
+        // Check completion
+        if (state.answered.size === QUIZ_DATA.length) {
+            setTimeout(showResults, 600);
+        }
+    }
+
+    function showFeedback(qIdx) {
+        const q = QUIZ_DATA[qIdx];
+        const fb = document.getElementById(`feedback-${qIdx}`);
+        const btn = document.getElementById(`fbBtn-${qIdx}`);
+
+        // Find selected option
+        let selectedOpt = null;
+        let correctOpt = null;
+        q.options.forEach((o, oi) => {
+            const el = document.getElementById(`opt-${qIdx}-${oi}`);
+            if (el.classList.contains('selected-correct') || el.classList.contains('selected-wrong')) selectedOpt = o;
+            if (o.correct) correctOpt = o;
+        });
+
+        const isCorrect = selectedOpt && selectedOpt.correct;
+
+        let feedbackHtml = '';
+        if (isCorrect) {
+            feedbackHtml = `
+      <div class="feedback-title">✅ ¡Correcto!</div>
+      <p><strong>¿Por qué es correcta?</strong> ${correctOpt.text}</p>`;
+        } else {
+            feedbackHtml = `
+      <div class="feedback-title">❌ Incorrecto</div>
+      <p><strong>Tu respuesta:</strong> ${selectedOpt ? selectedOpt.text : ''}</p>
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.08);margin:12px 0">
+      <p><strong>Respuesta correcta (${correctOpt.letter}):</strong> ${correctOpt.text}</p>`;
+        }
+
+        fb.innerHTML = feedbackHtml;
+        fb.className = `feedback show ${isCorrect ? 'correct-fb' : 'wrong-fb'}`;
+        btn.style.display = 'none';
+    }
+
+    function updateScore() {
+        document.getElementById('correctCount').textContent = state.correct;
+        document.getElementById('wrongCount').textContent = state.wrong;
+        document.getElementById('pendingCount').textContent = QUIZ_DATA.length - state.answered.size;
+        document.getElementById('progressFill').style.width = `${(state.answered.size / QUIZ_DATA.length) * 100}%`;
+    }
+
+    function showResults() {
+        const card = document.getElementById('resultsCard');
+        const pct = Math.round((state.correct / QUIZ_DATA.length) * 100);
+        document.getElementById('finalScore').textContent = `${state.correct}/${QUIZ_DATA.length}`;
+
+        let msg = '';
+        if (pct === 100) msg = '🏆 ¡Perfecto! Dominas completamente estos conceptos de POO en Java.';
+        else if (pct >= 80) msg = '🎉 ¡Excelente! Tienes un dominio sólido. Revisa los errores para perfeccionar.';
+        else if (pct >= 60) msg = '👍 Buen trabajo. Repasa los temas donde fallaste para reforzar.';
+        else if (pct >= 40) msg = '📚 Vas por buen camino, pero necesitas repasar varios conceptos. ¡Ánimo!';
+        else msg = '💪 No te desanimes. Vuelve a estudiar los temas y repite el quiz.';
+
+        document.getElementById('resultsMsg').textContent = msg;
+        card.classList.add('show');
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function resetQuiz() {
+        state = { correct: 0, wrong: 0, answered: new Set() };
+        renderQuiz();
+        updateScore();
+        document.getElementById('resultsCard').classList.remove('show');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function scrollToQ(idx) {
+        document.getElementById('qcard-' + idx).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Init
+    renderQuiz();
+    updateScore();
+</script>
+
+</body>
+</html>
